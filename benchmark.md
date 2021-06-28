@@ -1,5 +1,6 @@
 benchmarking cost for curve operation of Arkwork's implementation
 ------
+AMD 5900x; ubuntu 20.04; arkworks 0.3.0; rust 1.52.1
 
 # Edward curves ops
 
