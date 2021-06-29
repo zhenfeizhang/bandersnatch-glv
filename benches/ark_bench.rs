@@ -30,16 +30,16 @@ fn bench_bandersnatch(c: &mut Criterion) {
     rng.fill_bytes(&mut bytes);
 
     let mut base_point = bandersnatch::EdwardsAffine::prime_subgroup_generator();
-    let mut random_point =
-    bandersnatch::EdwardsAffine::from_random_bytes(bytes.as_ref()).unwrap();
+    // let mut random_point =
+    // bandersnatch::EdwardsAffine::from_random_bytes(bytes.as_ref()).unwrap();
 
-    let bench_str = format!("random base mul");
-    bench_group.bench_function(bench_str, move |b| {
-        let r = bandersnatch::Fr::rand(&mut rng);
-        b.iter(|| {
-            random_point.mul_assign(r);
-        })
-    });
+    // let bench_str = format!("random base mul");
+    // bench_group.bench_function(bench_str, move |b| {
+    //     let r = bandersnatch::Fr::rand(&mut rng);
+    //     b.iter(|| {
+    //         random_point.mul_assign(r);
+    //     })
+    // });
 
     let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
     let bench_str = format!("fix base mul");

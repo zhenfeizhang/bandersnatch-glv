@@ -6,8 +6,8 @@ AMD 5900x; ubuntu 20.04; arkworks 0.3.0; rust 1.52.1
 
 |   | bandersnatch (without GLV)| Jubjub | ed_on_bls12_377|
 |:---|---| --- | ---|
-| rand base mul  | 91 us |  75 us  | 75 us|
-| fix base mul | 94 us | 75 us  | 73 us |
+| rand base mul  | - us |  75 us  | 75 us|
+| fix base mul | 80 us | 75 us  | 73 us |
 
 # G1 ops
 

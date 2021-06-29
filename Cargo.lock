@@ -140,7 +140,7 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 [[package]]
 name = "bandersnatch"
 version = "0.1.0"
-source = "git+https://github.com/zhenfeizhang/bandersnatch-rust?branch=main#47173bffc30ef35597c18282e852477d89e09f66"
+source = "git+https://github.com/zhenfeizhang/bandersnatch-rust?branch=main#f7bf9dc411e65f1b9defa3b5b0cef473a3d257b3"
 dependencies = [
  "ark-bls12-381",
  "ark-ec",
