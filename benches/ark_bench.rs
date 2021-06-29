@@ -11,6 +11,7 @@ use rand_chacha::ChaCha20Rng;
 
 criterion_group!(
     ark_bench,
+    bench_bandersnatch,
     bench_jubjub,
     bench_ed_on_bls_12_377,
     bench_bls12_381_g1,
@@ -19,6 +20,38 @@ criterion_group!(
     bench_bls12_377_g2
 );
 criterion_main!(ark_bench);
+
+
+fn bench_bandersnatch(c: &mut Criterion) {
+    let mut bench_group = c.benchmark_group("bandersnatch curve");
+
+    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+    let mut bytes = [0u8; 32];
+    rng.fill_bytes(&mut bytes);
+
+    let mut base_point = bandersnatch::EdwardsAffine::prime_subgroup_generator();
+    let mut random_point =
+    bandersnatch::EdwardsAffine::from_random_bytes(bytes.as_ref()).unwrap();
+
+    let bench_str = format!("random base mul");
+    bench_group.bench_function(bench_str, move |b| {
+        let r = bandersnatch::Fr::rand(&mut rng);
+        b.iter(|| {
+            random_point.mul_assign(r);
+        })
+    });
+
+    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+    let bench_str = format!("fix base mul");
+    bench_group.bench_function(bench_str, move |b| {
+        let r = bandersnatch::Fr::rand(&mut rng);
+        b.iter(|| {
+            base_point.mul_assign(r);
+        })
+    });
+    bench_group.finish();
+}
+
 
 fn bench_jubjub(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("JubJub curve");
