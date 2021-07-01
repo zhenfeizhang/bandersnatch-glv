@@ -157,6 +157,7 @@ dependencies = [
  "ark-ec",
  "ark-ed-on-bls12-377",
  "ark-ed-on-bls12-381",
+ "ark-ff",
  "ark-std",
  "bandersnatch",
  "bencher",

@@ -19,6 +19,9 @@ ark-bls12-377 = { version = "0.3.0", default-features = false, features = [ "cur
 bandersnatch = { branch = "main", version = "0.1.0", git = "https://github.com/zhenfeizhang/bandersnatch-rust", default-features = false }
 
 rand_chacha = { version = "0.3.0", default-features = false }
+# ark-algebra-test-templates = { version = "^0.3.0", default-features = false }
+
+ark-ff = { version = "0.3.0", default-features = false }
 
 [dev-dependencies]
 # benchmarking 

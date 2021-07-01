@@ -6,11 +6,13 @@ use ark_ec::ProjectiveCurve;
 use ark_std::ops::MulAssign;
 use ark_std::rand::{RngCore, SeedableRng};
 use ark_std::UniformRand;
+use bench_ark_curves::psi;
 use criterion::Criterion;
 use rand_chacha::ChaCha20Rng;
 
 criterion_group!(
     ark_bench,
+    bench_endomorphism,
     bench_bandersnatch,
     bench_jubjub,
     bench_ed_on_bls_12_377,
@@ -21,6 +23,15 @@ criterion_group!(
 );
 criterion_main!(ark_bench);
 
+fn bench_endomorphism(c: &mut Criterion) {
+    let mut bench_group = c.benchmark_group("bandersnatch curve");
+
+    let base_point = bandersnatch::EdwardsAffine::prime_subgroup_generator();
+
+    let bench_str = format!("endomorphism");
+    bench_group.bench_function(bench_str, move |b| b.iter(|| psi(&base_point)));
+    bench_group.finish();
+}
 
 fn bench_bandersnatch(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("bandersnatch curve");
@@ -51,7 +62,6 @@ fn bench_bandersnatch(c: &mut Criterion) {
     });
     bench_group.finish();
 }
-
 
 fn bench_jubjub(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("JubJub curve");
