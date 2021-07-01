@@ -7,10 +7,10 @@ use ark_std::ops::MulAssign;
 use ark_std::rand::{RngCore, SeedableRng};
 use ark_std::UniformRand;
 use bench_ark_curves::get_decomposition;
+use bench_ark_curves::poor_man_glv;
 use bench_ark_curves::psi;
 use criterion::Criterion;
 use rand_chacha::ChaCha20Rng;
-use bench_ark_curves::poor_man_glv;
 
 criterion_group!(
     ark_bench,

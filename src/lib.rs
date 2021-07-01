@@ -10,7 +10,7 @@ use bandersnatch::{EdwardsAffine, EdwardsProjective, FrParameters};
 use bandersnatch::{Fq, Fr};
 use num_bigint::BigUint;
 use std::convert::TryFrom;
-
+use ark_std::cmp::max;
 #[rustfmt::skip]
 const COEFF_A1: Fq = field_new!(Fq, "16179988757916560824577558193084210236647645729299773892093730683504906651604");
 #[rustfmt::skip]
@@ -62,8 +62,8 @@ const COEFF_N22: Fr = field_new!(Fr, "-113482231691339203864511368254957623327")
 
 pub fn poor_man_glv(base: EdwardsAffine, scalar: Fr) -> EdwardsProjective {
     let psi_base = psi(&base);
-    let (k1,k2) = get_decomposition(scalar);
-    
+    let (k1, k2) = get_decomposition(scalar);
+
     multi_scalar_mul(&base, &k1, &psi_base, &k2)
 }
 
@@ -140,19 +140,34 @@ pub fn multi_scalar_mul(
 
     let s1_bits = s1.to_bits_le();
     let s2_bits = s2.to_bits_le();
+    let s1_len = get_bits(&s1_bits);
+    let s2_len = get_bits(&s2_bits);
+    // println!("{} {}", s1_len, s2_len);
 
     let mut res = EdwardsProjective::zero();
-    for (&x, &y) in s1_bits.iter().zip(s2_bits.iter()) {
+    for i in 0..max(s1_len, s2_len) as usize {
         res = res.double();
-
-        if x && !y {
+        // println!("{} {:?}", i, res);
+        if s1_bits[i] && !s2_bits[i] {
             res += b1
         }
-        if !x && y {
+        if !s1_bits[i] && s2_bits[i] {
             res += b2
         }
-        if x && y {
+        if s1_bits[i] && s2_bits[i] {
             res += b1b2
+        }
+    }
+    res
+}
+
+fn get_bits(a: &[bool]) -> u16 {
+    let mut res = 256;
+    for e in a.iter().rev() {
+        if !e {
+            res -= 1;
+        } else {
+            return res;
         }
     }
     res
@@ -216,5 +231,5 @@ fn test_msm() {
     let res2 = multi_scalar_mul(&base_point, &k1, &psi_point.into_projective(), &k2).into_affine();
 
     assert_eq!(tmp.into_affine(), res);
-    assert_eq!(res, res2,);
+    assert_eq!(res, res2);
 }
