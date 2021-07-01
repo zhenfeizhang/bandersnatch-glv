@@ -71,7 +71,7 @@ fn bench_bandersnatch(c: &mut Criterion) {
     bench_group.bench_function(bench_str, move |b| {
         let r = bandersnatch::Fr::rand(&mut rng);
         b.iter(|| {
-            poor_man_glv(base_point, r);
+            let _ = poor_man_glv(base_point, r);
         })
     });
 

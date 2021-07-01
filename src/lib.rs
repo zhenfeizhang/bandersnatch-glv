@@ -3,14 +3,13 @@ use ark_ec::ProjectiveCurve;
 use ark_ff::field_new;
 use ark_ff::BigInteger;
 use ark_ff::BigInteger256;
-use ark_ff::BigInteger384;
 use ark_ff::One;
+use ark_std::cmp::max;
 use ark_std::Zero;
-use bandersnatch::{EdwardsAffine, EdwardsProjective, FrParameters};
+use bandersnatch::{EdwardsAffine, EdwardsProjective};
 use bandersnatch::{Fq, Fr};
 use num_bigint::BigUint;
-use std::convert::TryFrom;
-use ark_std::cmp::max;
+
 #[rustfmt::skip]
 const COEFF_A1: Fq = field_new!(Fq, "16179988757916560824577558193084210236647645729299773892093730683504906651604");
 #[rustfmt::skip]
@@ -63,11 +62,10 @@ const COEFF_N22: Fr = field_new!(Fr, "-113482231691339203864511368254957623327")
 pub fn poor_man_glv(base: EdwardsAffine, scalar: Fr) -> EdwardsProjective {
     let psi_base = psi(&base);
     let (k1, k2) = get_decomposition(scalar);
-
     multi_scalar_mul(&base, &k1, &psi_base, &k2)
 }
 
-pub fn psi(base: &EdwardsAffine) -> EdwardsProjective {
+pub fn psi(base: &EdwardsAffine) -> EdwardsAffine {
     let mut x = base.x;
     let mut y = base.y;
     let mut z = y;
@@ -81,7 +79,7 @@ pub fn psi(base: &EdwardsAffine) -> EdwardsProjective {
     y = gy * z;
     z = hy * z;
 
-    EdwardsProjective::new(x, y, Fq::one(), z)
+    EdwardsProjective::new(x, y, Fq::one(), z).into_affine()
 }
 
 pub fn get_decomposition(scalar: Fr) -> (Fr, Fr) {
@@ -117,12 +115,12 @@ pub fn get_decomposition(scalar: Fr) -> (Fr, Fr) {
 pub fn multi_scalar_mul(
     base: &EdwardsAffine,
     scalar_1: &Fr,
-    endor_base: &EdwardsProjective,
+    endor_base: &EdwardsAffine,
     scalar_2: &Fr,
 ) -> EdwardsProjective {
     let mut b1 = (*base).into_projective();
     let mut s1 = *scalar_1;
-    let mut b2 = *endor_base;
+    let mut b2 = (*endor_base).into_projective();
     let mut s2 = *scalar_2;
 
     if s1 > MODULUS_MINUS_ONE_DIV_TWO.into() {
@@ -142,19 +140,18 @@ pub fn multi_scalar_mul(
     let s2_bits = s2.to_bits_le();
     let s1_len = get_bits(&s1_bits);
     let s2_len = get_bits(&s2_bits);
-    // println!("{} {}", s1_len, s2_len);
+    let len = max(s1_len, s2_len) as usize;
 
     let mut res = EdwardsProjective::zero();
-    for i in 0..max(s1_len, s2_len) as usize {
+    for i in 0..len {
         res = res.double();
-        // println!("{} {:?}", i, res);
-        if s1_bits[i] && !s2_bits[i] {
+        if s1_bits[len - i - 1] && !s2_bits[len - i - 1] {
             res += b1
         }
-        if !s1_bits[i] && s2_bits[i] {
+        if !s1_bits[len - i - 1] && s2_bits[len - i - 1] {
             res += b2
         }
-        if s1_bits[i] && s2_bits[i] {
+        if s1_bits[len - i - 1] && s2_bits[len - i - 1] {
             res += b1b2
         }
     }
@@ -176,7 +173,6 @@ fn get_bits(a: &[bool]) -> u16 {
 #[test]
 fn test_psi() {
     use ark_ec::AffineCurve;
-    use ark_ec::ProjectiveCurve;
     use ark_std::str::FromStr;
 
     let base_point = bandersnatch::EdwardsAffine::prime_subgroup_generator();
@@ -187,7 +183,7 @@ fn test_psi() {
     .unwrap();
 
     let t = psi(&base_point);
-    assert_eq!(t.into_affine(), psi_point);
+    assert_eq!(t, psi_point);
 }
 
 #[test]
@@ -211,7 +207,7 @@ fn test_msm() {
     )
     .unwrap();
     let t = psi(&base_point);
-    assert_eq!(t.into_affine(), psi_point);
+    assert_eq!(t, psi_point);
 
     let scalar: Fr = field_new!(
         Fr,
@@ -228,8 +224,39 @@ fn test_msm() {
     .unwrap();
 
     let tmp = base_point.mul(scalar);
-    let res2 = multi_scalar_mul(&base_point, &k1, &psi_point.into_projective(), &k2).into_affine();
+    let res2 = multi_scalar_mul(&base_point, &k1, &psi_point, &k2).into_affine();
 
     assert_eq!(tmp.into_affine(), res);
     assert_eq!(res, res2);
+}
+
+#[test]
+fn test_gen_mul() {
+    let a = bandersnatch::EdwardsAffine::prime_subgroup_generator();
+    let r: Fr = field_new!(
+        Fr,
+        "4257185345094557079734489188109952172285839137338142340240392707284963971010"
+    );
+
+    let b = a.mul(r);
+    let c = poor_man_glv(a, r);
+
+    assert_eq!(b.into_affine(), c.into_affine())
+}
+
+#[test]
+fn test_rnd_mul() {
+    use ark_std::rand::Rng;
+    use ark_std::test_rng;
+
+    let mut rng = test_rng();
+    for _ in 0..100 {
+        let a: EdwardsAffine = rng.gen();
+        let r: Fr = rng.gen();
+
+        let b = a.mul(r);
+        let c = poor_man_glv(a, r);
+
+        assert_eq!(b.into_affine(), c.into_affine())
+    }
 }
