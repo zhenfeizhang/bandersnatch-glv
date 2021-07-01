@@ -1,7 +1,11 @@
+use ark_ec::AffineCurve;
+use ark_ec::ProjectiveCurve;
 use ark_ff::field_new;
+use ark_ff::BigInteger;
 use ark_ff::BigInteger256;
 use ark_ff::BigInteger384;
 use ark_ff::One;
+use ark_std::Zero;
 use bandersnatch::{EdwardsAffine, EdwardsProjective, FrParameters};
 use bandersnatch::{Fq, Fr};
 use num_bigint::BigUint;
@@ -26,11 +30,22 @@ const COEFF_C1: Fq = field_new!(Fq, "4291030908938204115803854541930914095540093
 #[rustfmt::skip]
 const COEFF_C2: Fq = field_new!(Fq, "9525566085744149321409195088876824882289612628347811771111042012460898191436");
 
+/// The modulus of the field.
+/// MODULUS = 13108968793781547619861935127046491459309155893440570251786403306729687672801.
 const MODULUS: BigInteger256 = BigInteger256([
     0x74fd06b52876e7e1,
     0xff8f870074190471,
     0x0cce760202687600,
     0x1cfb69d4ca675f52,
+]);
+
+/// (Self::MODULUS - 1) / 2
+/// 6554484396890773809930967563523245729654577946720285125893201653364843836400
+const MODULUS_MINUS_ONE_DIV_TWO: BigInteger256 = BigInteger256([
+    0xba7e835a943b73f0,
+    0x7fc7c3803a0c8238,
+    0x06673b0101343b00,
+    0xe7db4ea6533afa9,
 ]);
 
 // N = Matrix(
@@ -47,8 +62,9 @@ const COEFF_N22: Fr = field_new!(Fr, "-113482231691339203864511368254957623327")
 
 pub fn poor_man_glv(base: EdwardsAffine, scalar: Fr) -> EdwardsProjective {
     let psi_base = psi(&base);
-
-    todo!()
+    let (k1,k2) = get_decomposition(scalar);
+    
+    multi_scalar_mul(&base, &k1, &psi_base, &k2)
 }
 
 pub fn psi(base: &EdwardsAffine) -> EdwardsProjective {
@@ -98,6 +114,50 @@ pub fn get_decomposition(scalar: Fr) -> (Fr, Fr) {
     (k1, k2)
 }
 
+pub fn multi_scalar_mul(
+    base: &EdwardsAffine,
+    scalar_1: &Fr,
+    endor_base: &EdwardsProjective,
+    scalar_2: &Fr,
+) -> EdwardsProjective {
+    let mut b1 = (*base).into_projective();
+    let mut s1 = *scalar_1;
+    let mut b2 = *endor_base;
+    let mut s2 = *scalar_2;
+
+    if s1 > MODULUS_MINUS_ONE_DIV_TWO.into() {
+        b1 = -b1;
+        s1 = -s1;
+    }
+    if s2 > MODULUS_MINUS_ONE_DIV_TWO.into() {
+        b2 = -b2;
+        s2 = -s2;
+    }
+    let s1: BigInteger256 = s1.into();
+    let s2: BigInteger256 = s2.into();
+
+    let b1b2 = b1 + b2;
+
+    let s1_bits = s1.to_bits_le();
+    let s2_bits = s2.to_bits_le();
+
+    let mut res = EdwardsProjective::zero();
+    for (&x, &y) in s1_bits.iter().zip(s2_bits.iter()) {
+        res = res.double();
+
+        if x && !y {
+            res += b1
+        }
+        if !x && y {
+            res += b2
+        }
+        if x && y {
+            res += b1b2
+        }
+    }
+    res
+}
+
 #[test]
 fn test_psi() {
     use ark_ec::AffineCurve;
@@ -124,4 +184,37 @@ fn test_decomp() {
     let k1: Fr = field_new!(Fr, "30417741863887432744214758610616508258");
     let k2: Fr = field_new!(Fr, "-6406990765953933188067911864924578940");
     assert_eq!(get_decomposition(scalar), (k1, k2))
+}
+
+#[test]
+fn test_msm() {
+    use std::str::FromStr;
+    let base_point = bandersnatch::EdwardsAffine::prime_subgroup_generator();
+    let psi_point = bandersnatch::EdwardsAffine::from_str(
+        "(3995099504672814451457646880854530097687530507181962222512229786736061793535, \
+         33370049900732270411777328808452912493896532385897059012214433666611661340894)",
+    )
+    .unwrap();
+    let t = psi(&base_point);
+    assert_eq!(t.into_affine(), psi_point);
+
+    let scalar: Fr = field_new!(
+        Fr,
+        "4257185345094557079734489188109952172285839137338142340240392707284963971010"
+    );
+    let k1: Fr = field_new!(Fr, "30417741863887432744214758610616508258");
+    let k2: Fr = field_new!(Fr, "-6406990765953933188067911864924578940");
+    assert_eq!(get_decomposition(scalar), (k1, k2));
+
+    let res = bandersnatch::EdwardsAffine::from_str(
+        "(6018810645516749504657411940673266094850700554607419759628157493373766067122, \
+         13929928331741974885869757126422340790588975043986274897468601817898742989376)",
+    )
+    .unwrap();
+
+    let tmp = base_point.mul(scalar);
+    let res2 = multi_scalar_mul(&base_point, &k1, &psi_point.into_projective(), &k2).into_affine();
+
+    assert_eq!(tmp.into_affine(), res);
+    assert_eq!(res, res2,);
 }

@@ -10,6 +10,7 @@ use bench_ark_curves::get_decomposition;
 use bench_ark_curves::psi;
 use criterion::Criterion;
 use rand_chacha::ChaCha20Rng;
+use bench_ark_curves::poor_man_glv;
 
 criterion_group!(
     ark_bench,
@@ -65,6 +66,14 @@ fn bench_bandersnatch(c: &mut Criterion) {
     //         random_point.mul_assign(r);
     //     })
     // });
+    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+    let bench_str = format!("poor man glv");
+    bench_group.bench_function(bench_str, move |b| {
+        let r = bandersnatch::Fr::rand(&mut rng);
+        b.iter(|| {
+            poor_man_glv(base_point, r);
+        })
+    });
 
     let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
     let bench_str = format!("fix base mul");
