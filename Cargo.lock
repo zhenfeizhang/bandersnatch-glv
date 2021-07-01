@@ -162,6 +162,7 @@ dependencies = [
  "bandersnatch",
  "bencher",
  "criterion",
+ "num-bigint",
  "rand_chacha",
 ]
 

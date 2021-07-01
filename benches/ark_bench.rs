@@ -6,6 +6,7 @@ use ark_ec::ProjectiveCurve;
 use ark_std::ops::MulAssign;
 use ark_std::rand::{RngCore, SeedableRng};
 use ark_std::UniformRand;
+use bench_ark_curves::get_decomposition;
 use bench_ark_curves::psi;
 use criterion::Criterion;
 use rand_chacha::ChaCha20Rng;
@@ -13,6 +14,7 @@ use rand_chacha::ChaCha20Rng;
 criterion_group!(
     ark_bench,
     bench_endomorphism,
+    bench_decomposition,
     bench_bandersnatch,
     bench_jubjub,
     bench_ed_on_bls_12_377,
@@ -22,6 +24,18 @@ criterion_group!(
     bench_bls12_377_g2
 );
 criterion_main!(ark_bench);
+
+fn bench_decomposition(c: &mut Criterion) {
+    let mut bench_group = c.benchmark_group("bandersnatch curve");
+
+    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+    let bench_str = format!("decomposition");
+    bench_group.bench_function(bench_str, move |b| {
+        let r = bandersnatch::Fr::rand(&mut rng);
+        b.iter(|| get_decomposition(r))
+    });
+    bench_group.finish();
+}
 
 fn bench_endomorphism(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("bandersnatch curve");

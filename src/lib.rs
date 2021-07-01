@@ -1,7 +1,11 @@
 use ark_ff::field_new;
+use ark_ff::BigInteger256;
+use ark_ff::BigInteger384;
 use ark_ff::One;
-use bandersnatch::Fq;
 use bandersnatch::{EdwardsAffine, EdwardsProjective, FrParameters};
+use bandersnatch::{Fq, Fr};
+use num_bigint::BigUint;
+use std::convert::TryFrom;
 
 #[rustfmt::skip]
 const COEFF_A1: Fq = field_new!(Fq, "16179988757916560824577558193084210236647645729299773892093730683504906651604");
@@ -22,7 +26,28 @@ const COEFF_C1: Fq = field_new!(Fq, "4291030908938204115803854541930914095540093
 #[rustfmt::skip]
 const COEFF_C2: Fq = field_new!(Fq, "9525566085744149321409195088876824882289612628347811771111042012460898191436");
 
-pub fn poor_man_glv(base: EdwardsAffine, scalar: FrParameters) -> EdwardsProjective {
+const MODULUS: BigInteger256 = BigInteger256([
+    0x74fd06b52876e7e1,
+    0xff8f870074190471,
+    0x0cce760202687600,
+    0x1cfb69d4ca675f52,
+]);
+
+// N = Matrix(
+// [[113482231691339203864511368254957623327,  10741319382058138887739339959866629956],
+// [21482638764116277775478679919733259912, -113482231691339203864511368254957623327]])
+#[rustfmt::skip]
+const COEFF_N11: Fr = field_new!(Fr, "113482231691339203864511368254957623327");
+#[rustfmt::skip]
+const COEFF_N12: Fr = field_new!(Fr, "10741319382058138887739339959866629956");
+#[rustfmt::skip]
+const COEFF_N21: Fr = field_new!(Fr, "21482638764116277775478679919733259912");
+#[rustfmt::skip]
+const COEFF_N22: Fr = field_new!(Fr, "-113482231691339203864511368254957623327");
+
+pub fn poor_man_glv(base: EdwardsAffine, scalar: Fr) -> EdwardsProjective {
+    let psi_base = psi(&base);
+
     todo!()
 }
 
@@ -43,6 +68,36 @@ pub fn psi(base: &EdwardsAffine) -> EdwardsProjective {
     EdwardsProjective::new(x, y, Fq::one(), z)
 }
 
+pub fn get_decomposition(scalar: Fr) -> (Fr, Fr) {
+    let tmp: BigInteger256 = scalar.into();
+    let scalar_z: BigUint = tmp.into();
+
+    let tmp: BigInteger256 = COEFF_N11.into();
+    let n11: BigUint = tmp.into();
+
+    let tmp: BigInteger256 = COEFF_N12.into();
+    let n12: BigUint = tmp.into();
+
+    let r: BigUint = MODULUS.into();
+
+    // beta = vector([n,0]) * self.curve.N_inv
+    let beta_1 = scalar_z.clone() * n11;
+    let beta_2 = scalar_z * n12;
+
+    let beta_1 = beta_1 / r.clone();
+    let beta_2 = beta_2 / r;
+
+    // b = vector([int(beta[0]), int(beta[1])]) * self.curve.N
+    let beta_1 = Fr::from(beta_1);
+    let beta_2 = Fr::from(beta_2);
+    let b1 = beta_1 * COEFF_N11 + beta_2 * COEFF_N21;
+    let b2 = beta_1 * COEFF_N12 + beta_2 * COEFF_N22;
+
+    let k1 = scalar - b1;
+    let k2 = -b2;
+    (k1, k2)
+}
+
 #[test]
 fn test_psi() {
     use ark_ec::AffineCurve;
@@ -56,7 +111,17 @@ fn test_psi() {
     )
     .unwrap();
 
-    let t = psi(&base_point); 
+    let t = psi(&base_point);
     assert_eq!(t.into_affine(), psi_point);
 }
-  
+
+#[test]
+fn test_decomp() {
+    let scalar: Fr = field_new!(
+        Fr,
+        "4257185345094557079734489188109952172285839137338142340240392707284963971010"
+    );
+    let k1: Fr = field_new!(Fr, "30417741863887432744214758610616508258");
+    let k2: Fr = field_new!(Fr, "-6406990765953933188067911864924578940");
+    assert_eq!(get_decomposition(scalar), (k1, k2))
+}

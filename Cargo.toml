@@ -22,6 +22,7 @@ rand_chacha = { version = "0.3.0", default-features = false }
 # ark-algebra-test-templates = { version = "^0.3.0", default-features = false }
 
 ark-ff = { version = "0.3.0", default-features = false }
+num-bigint = { version = "0.4.0", default-features = false }
 
 [dev-dependencies]
 # benchmarking 
